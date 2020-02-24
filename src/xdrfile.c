@@ -111,7 +111,9 @@ static int xdr_float(XDR* xdrs, float* ip);
 static int xdr_double(XDR* xdrs, double* ip);
 static int xdr_string(XDR* xdrs, char** ip, unsigned int maxsize);
 static int xdr_opaque(XDR* xdrs, char* cp, unsigned int cnt);
+
 static void xdrstdio_create(XDR* xdrs, FILE* fp, enum xdr_op xop);
+static void xdrmem_create(XDR* xdrs, void* ptr, int64_t num_bytes, enum xdr_op xop);
 
 /* #define xdr_getpos(xdrs) (*(xdrs)->x_ops->x_getpostn)(xdrs) */
 /* #define xdr_setpos(xdrs, pos) (*(xdrs)->x_ops->x_setpostn)(xdrs, pos) */
@@ -135,6 +137,14 @@ struct XDRFILE {
     int buf1size; /**< Current allocated length of buf1          */
     int* buf2;    /**< Buffer for internal use                   */
     int buf2size; /**< Current allocated length of buf2          */
+};
+
+typedef struct XDRMEM XDRMEM;
+
+struct XDRMEM {
+    char* base;
+    char* head;
+    int64_t num_bytes;
 };
 
 /*************************************************************
@@ -181,6 +191,38 @@ XDRFILE* xdrfile_open(const char* path, const char* mode) {
     return xfp;
 }
 
+XDRFILE* xdrfile_mem(void* ptr, int64_t num_bytes, const char* mode) {
+    XDRFILE* xfp;
+    enum xdr_op xdrmode;
+
+    /* make sure XDR files are opened in binary mode... */
+    if (*mode == 'w' || *mode == 'W') {
+        xdrmode = XDR_ENCODE;
+    } else if (*mode == 'a' || *mode == 'A') {
+        // xdrmode = XDR_ENCODE;
+        return NULL;
+    } else if (*mode == 'r' || *mode == 'R') {
+        xdrmode = XDR_DECODE;
+    } else { /* cannot determine mode */
+        return NULL;
+    }
+
+    if ((xfp = (XDRFILE*)malloc(sizeof(XDRFILE))) == NULL) {
+        return NULL;
+    }
+
+    xfp->fp = NULL;
+    if ((xfp->xdr = (XDR*)malloc(sizeof(XDR))) == NULL) {
+        free(xfp);
+        return NULL;
+    }
+
+    xfp->mode = *mode;
+    xdrmem_create(xfp->xdr, ptr, num_bytes, xdrmode);
+    xfp->buf1 = xfp->buf2 = NULL;
+    xfp->buf1size = xfp->buf2size = 0;
+}
+
 int xdrfile_close(XDRFILE* xfp) {
     int ret = exdrCLOSE;
     if (xfp) {
@@ -190,7 +232,9 @@ int xdrfile_close(XDRFILE* xfp) {
         }
         free(xfp->xdr);
         /* close the file */
-        ret = fclose(xfp->fp);
+        if (xfp->fp) {
+            ret = fclose(xfp->fp);
+        }
         if (xfp->buf1size) {
             free(xfp->buf1);
         }
@@ -2101,6 +2145,104 @@ static int xdrstdio_setpos(XDR* xdrs, int64_t pos, int whence) {
 #else                   /*  __unix__ */
     return fseeko((FILE*)xdrs->x_private, pos, whence) < 0 ? errno : exdrOK;
 #endif
+}
+
+static int xdrmem_getlong(XDR*, int32_t*);
+static int xdrmem_putlong(XDR*, int32_t*);
+static int xdrmem_getbytes(XDR*, char*, unsigned int);
+static int xdrmem_putbytes(XDR*, char*, unsigned int);
+static int64_t xdrmem_getpos(XDR*);
+static int xdrmem_setpos(XDR*, int64_t, int);
+static void xdrmem_destroy(XDR*);
+
+/*
+ * Ops vector for mem type XDR
+ */
+static const struct xdr_ops xdrmem_ops = {
+    xdrmem_getlong,  /* deserialize a long int */
+    xdrmem_putlong,  /* serialize a long int */
+    xdrmem_getbytes, /* deserialize counted bytes */
+    xdrmem_putbytes, /* serialize counted bytes */
+    xdrmem_getpos,   /* get offset in the stream */
+    xdrmem_setpos,   /* set offset in the stream */
+    xdrmem_destroy,  /* destroy stream */
+};
+
+/*
+ * Initialize a raw-memory xdr stream.
+ * Sets the xdr stream handle xdrs for use on the memory.
+ * Operation flag is set to op.
+ */
+static void xdrmem_create(XDR* xdrs, void* ptr, int64_t num_bytes, enum xdr_op op) {
+    XDRMEM* xdrmem;
+    xdrmem = (XDRMEM*)malloc(sizeof(XDRMEM));
+
+    xdrs->x_op = op;
+    xdrs->x_ops = (const struct xdr_ops*)&xdrmem_ops;
+    xdrs->x_private = xdrmem;
+}
+
+/*
+ * Destroy a memory xdr stream.
+ * Cleans up the xdr stream handle xdrs previously set up by xdrmem_create.
+ */
+static void xdrmem_destroy(XDR* xdrs) {
+    memset(((XDRMEM*)xdrs->x_private), 0, sizeof(XDRMEM));
+    free(xdrs->x_private);
+}
+
+static int xdrmem_getlong(XDR* xdrs, int32_t* lp) {
+    XDRMEM* mem = xdrs->x_private;
+    int32_t mycopy = *(int32_t*)mem->head;
+    mem->head += sizeof(int32_t);
+    *lp = (int32_t)xdr_ntohl(mycopy);
+    return 1;
+}
+
+static int xdrmem_putlong(XDR* xdrs, int32_t* lp) {
+    XDRMEM* mem = xdrs->x_private;
+    int32_t mycopy = xdr_htonl(*lp);
+    *(int32_t*)mem->head = mycopy;
+    mem->head += sizeof(int32_t);
+    return 1;
+}
+
+static int xdrmem_getbytes(XDR* xdrs, char* addr, unsigned int len) {
+    memcpy(addr, xdrs->x_private, len);
+    (char*)xdrs->x_private += len;
+    return 1;
+}
+
+static int xdrmem_putbytes(XDR* xdrs, char* addr, unsigned int len) {
+    memcpy(xdrs->x_private, addr, len);
+    (char*)xdrs->x_private += len;
+    return 1;
+}
+
+/* 64 bit fileseek operations */
+static int64_t xdrmem_getpos(XDR* xdrs) {
+    XDRMEM* mem = xdrs->x_private;
+    return mem->head - mem->base;
+}
+
+static int xdrmem_setpos(XDR* xdrs, int64_t pos, int whence) {
+    XDRMEM* mem = xdrs->x_private;
+    switch (whence) {
+    case SEEK_SET:
+        mem->head = mem->base + pos;
+        break;
+        ;
+    case SEEK_CUR:
+        mem->head = mem->head + pos;
+        break;
+        ;
+    case SEEK_END:
+        mem->head = mem->base + mem->num_bytes + pos;
+        break;
+    default:
+        return -1;
+    }
+    return mem->base <= mem->head && mem->head <= (mem->base + mem->num_bytes);
 }
 
 int64_t xdr_tell(XDRFILE* xd)

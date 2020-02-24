@@ -125,6 +125,16 @@ typedef float rvec[DIM];
  */
 XDRFILE* xdrfile_open(const char* path, const char* mode);
 
+/*! \brief Open a XDRFILE* handle to some location in memory.
+ *
+ *  Use this routine if you have loaded data into memory which you would like to
+ *  operate on, with the same interface.
+ *
+ *  \return Pointer to abstract xdr file datatype, or NULL if an error occurs.
+ *
+ */
+XDRFILE* xdrfile_mem(void* ptr, int64_t num_bytes, const char* mode);
+
 /*! \brief Close a previously opened portable binary file, just like fclose()
  *
  *  Use this routine much like calls to the standard library function

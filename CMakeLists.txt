@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.0)
 
 INCLUDE (CheckTypeSize)
 
-project(xdrfile C)
+project(xdrfile VERSION 1.1.4 LANGUAGES C)
 
 if (POLICY CMP0063)
     # Use of `<LANG>_VISIBILITY_PRESET` in OBJECT libraries

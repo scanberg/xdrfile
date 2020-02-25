@@ -45,7 +45,7 @@ int read_xtc_natoms(const char* fn, int* natoms);
  * It also returns the starting position of each frame as bytes from the beginning of the file
  * in **offsets, which has to be freed manually.
  */
-int read_xtc_header(const char* fn, int* natoms, unsigned long* nframes, int64_t** offsets);
+int read_xtc_header(const char* fn, int* natoms, int* nframes, int64_t** offsets);
 
 /* Read one frame of an open xtc file */
 int read_xtc(XDRFILE* xd, int natoms, int* step, float* time, matrix box, rvec* x, float* prec);

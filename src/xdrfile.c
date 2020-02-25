@@ -94,8 +94,8 @@ struct XDR {
         int (*x_getbytes)(XDR* __xdrs, char* __addr, unsigned int __len);
         int (*x_putbytes)(XDR* __xdrs, char* __addr, unsigned int __len);
         /* two next routines are not 64-bit IO safe - don't use! */
-        unsigned int (*x_getpostn)(XDR* __xdrs);
-        int (*x_setpostn)(XDR* __xdrs, unsigned int __pos);
+        int64_t (*x_getpostn)(XDR* __xdrs);
+        int (*x_setpostn)(XDR* __xdrs, int64_t __pos, int __whence);
         void (*x_destroy)(XDR* __xdrs);
     } const* x_ops;
     void* x_private;
@@ -2248,14 +2248,14 @@ static int xdrmem_setpos(XDR* xdrs, int64_t pos, int whence) {
 int64_t xdr_tell(XDRFILE* xd)
 /* Reads position in file */
 {
-    return (int64_t)xdrstdio_getpos(xd->xdr);
+    return xd->xdr->x_ops->x_getpostn(xd->xdr);
 }
 
 int xdr_seek(XDRFILE* xd, int64_t pos, int whence)
 /* Seeks to position in file */
 {
     int result;
-    if ((result = xdrstdio_setpos(xd->xdr, (int64_t)pos, whence)) != 0)
+    if ((result = xd->xdr->x_ops->x_setpostn(xd->xdr, pos, whence)) != 0)
         return result;
 
     return exdrOK;

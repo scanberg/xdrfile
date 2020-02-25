@@ -99,7 +99,7 @@ int read_xtc_natoms(const char* fn, int* natoms) {
     return result;
 }
 
-int read_xtc_header(const char* fn, int* natoms, unsigned long* nframes, int64_t** offsets) {
+int read_xtc_header(const char* fn, int* natoms, int* nframes, int64_t** offsets) {
     XDRFILE* xd;
     int i, result, est_nframes, framebytes;
     int64_t filesize;
@@ -124,8 +124,7 @@ int read_xtc_header(const char* fn, int* natoms, unsigned long* nframes, int64_t
     if (*natoms <= 9) {
         xdrfile_close(xd);
         framebytes = XTC_SMALL_HEADER_SIZE + XTC_SMALL_COORDS_SIZE * (*natoms);
-        *nframes =
-            filesize / framebytes; /* Should we complain if framesize doesn't divide filesize? */
+        *nframes = (int)(filesize / framebytes); /* Should we complain if framesize doesn't divide filesize? */
         *offsets = malloc(sizeof(int64_t) * (*nframes));
         if (*offsets == NULL) {
             /* failed to allocate memory for `offsets` */

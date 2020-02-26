@@ -2208,14 +2208,16 @@ static int xdrmem_putlong(XDR* xdrs, int32_t* lp) {
 }
 
 static int xdrmem_getbytes(XDR* xdrs, char* addr, unsigned int len) {
-    memcpy(addr, xdrs->x_private, len);
-    (char*)xdrs->x_private += len;
+    XDRMEM* mem = xdrs->x_private;
+    memcpy(addr, mem->head, len);
+    mem->head += len;
     return 1;
 }
 
 static int xdrmem_putbytes(XDR* xdrs, char* addr, unsigned int len) {
-    memcpy(xdrs->x_private, addr, len);
-    (char*)xdrs->x_private += len;
+    XDRMEM* mem = xdrs->x_private;
+    memcpy(mem->head, addr, len);
+    mem->head += len;
     return 1;
 }
 

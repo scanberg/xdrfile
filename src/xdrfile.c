@@ -221,6 +221,7 @@ XDRFILE* xdrfile_mem(void* ptr, int64_t num_bytes, const char* mode) {
     xdrmem_create(xfp->xdr, ptr, num_bytes, xdrmode);
     xfp->buf1 = xfp->buf2 = NULL;
     xfp->buf1size = xfp->buf2size = 0;
+    return xfp;
 }
 
 int xdrfile_close(XDRFILE* xfp) {
@@ -2175,8 +2176,13 @@ static const struct xdr_ops xdrmem_ops = {
  */
 static void xdrmem_create(XDR* xdrs, void* ptr, int64_t num_bytes, enum xdr_op op) {
     XDRMEM* xdrmem;
-    xdrmem = (XDRMEM*)malloc(sizeof(XDRMEM));
-
+    if ((xdrmem = (XDRMEM*)malloc(sizeof(XDRMEM))) == NULL) {
+        fprintf(stderr, "Could not allocate memory for xdrmem");
+        return;
+    }
+    xdrmem->base = ptr;
+    xdrmem->head = ptr;
+    xdrmem->num_bytes = num_bytes;
     xdrs->x_op = op;
     xdrs->x_ops = (const struct xdr_ops*)&xdrmem_ops;
     xdrs->x_private = xdrmem;

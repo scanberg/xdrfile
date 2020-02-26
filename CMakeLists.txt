@@ -26,6 +26,8 @@ set(SOURCES
 
 add_library(xdrfile ${SOURCES})
 target_include_directories(xdrfile PUBLIC include)
+target_compile_definitions(nativefiledialog
+    PRIVATE "_CRT_SECURE_NO_WARNINGS")
 
 if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
     enable_testing()

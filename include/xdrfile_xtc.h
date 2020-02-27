@@ -48,7 +48,7 @@ int read_xtc_natoms(const char* fn, int* natoms);
 int read_xtc_header(const char* fn, int* natoms, int* nframes, int64_t** offsets);
 
 /* Read one frame of an open xtc file */
-int read_xtc(XDRFILE* xd, int natoms, int* step, float* time, matrix box, rvec* x, float* prec);
+int read_xtc(XDRFILE* xd, int* natoms, int* step, float* time, matrix box, rvec* x, float* prec);
 
 /* Write a frame to xtc file */
 int write_xtc(XDRFILE* xd, int natoms, int step, float time, matrix box, rvec* x, float prec);

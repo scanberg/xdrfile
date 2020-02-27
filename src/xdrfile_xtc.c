@@ -204,14 +204,14 @@ int read_xtc_header(const char* fn, int* natoms, int* nframes, int64_t** offsets
 }
 
 /* Read subsequent frames */
-int read_xtc(XDRFILE* xd, int natoms, int* step, float* time, matrix box, rvec* x, float* prec) {
+int read_xtc(XDRFILE* xd, int* natoms, int* step, float* time, matrix box, rvec* x, float* prec) {
     int result;
 
-    if ((result = xtc_header(xd, &natoms, step, time, true)) != exdrOK) {
+    if ((result = xtc_header(xd, natoms, step, time, true)) != exdrOK) {
         return result;
     }
 
-    if ((result = xtc_coord(xd, &natoms, box, x, prec, true)) != exdrOK) {
+    if ((result = xtc_coord(xd, natoms, box, x, prec, true)) != exdrOK) {
         return result;
     }
 

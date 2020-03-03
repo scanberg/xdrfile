@@ -615,7 +615,7 @@ static void encodeints(int buf[], int num_of_ints, int num_of_bits, unsigned int
  *
  */
 
-static int decodebits(int buf[], int num_of_bits) {
+static inline int decodebits(int buf[], int num_of_bits) {
 
     int cnt, num;
     unsigned int lastbits, lastbyte;
@@ -658,11 +658,11 @@ static int decodebits(int buf[], int num_of_bits) {
  *
  */
 
-static void decodeints(int buf[], int num_of_ints, int num_of_bits, unsigned int sizes[],
-                       int nums[]) {
+static inline void decodeints(int buf[], int num_of_ints, int num_of_bits, unsigned int sizes[],
+                              int nums[]) {
 
-    int bytes[32];
-    int i, j, num_of_bytes, p, num;
+    int bytes[8];
+    int i, j, num_of_bytes, p, num, size;
 
     bytes[1] = bytes[2] = bytes[3] = 0;
     num_of_bytes = 0;
@@ -673,13 +673,15 @@ static void decodeints(int buf[], int num_of_ints, int num_of_bits, unsigned int
     if (num_of_bits > 0) {
         bytes[num_of_bytes++] = decodebits(buf, num_of_bits);
     }
+    //printf("num_bytes %i\n", num_of_bytes);
     for (i = num_of_ints - 1; i > 0; i--) {
         num = 0;
+        size = sizes[i];
         for (j = num_of_bytes - 1; j >= 0; j--) {
             num = (num << 8) | bytes[j];
-            p = num / sizes[i];
+            p = num / size;
+            num = num - p * size;
             bytes[j] = p;
-            num = num - p * sizes[i];
         }
         nums[i] = num;
     }
